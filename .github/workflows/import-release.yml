@@ -1,0 +1,38 @@
+name: Import validated dashboard release
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "MONITOREO_CONDICION_MOLINOS_RELEASE_VALIDADO.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  import-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract validated release
+        shell: bash
+        run: |
+          set -e
+          test -f MONITOREO_CONDICION_MOLINOS_RELEASE_VALIDADO.zip
+          unzip -o MONITOREO_CONDICION_MOLINOS_RELEASE_VALIDADO.zip -d .
+          rm MONITOREO_CONDICION_MOLINOS_RELEASE_VALIDADO.zip
+
+      - name: Commit exact validated source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "deploy: import validated dashboard release"
+            git push
+          fi
