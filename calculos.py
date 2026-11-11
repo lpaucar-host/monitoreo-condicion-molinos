@@ -492,7 +492,11 @@ def observaciones_recientes(mediciones: pd.DataFrame, limite=8) -> pd.DataFrame:
 
 PRIORIDAD_ORDEN = {"P1": 1, "P2": 2, "P3": 3, "P4": 4}
 
-def prioridad_actual(mediciones: pd.DataFrame, dias_vigencia: int = 30) -> pd.DataFrame:
+def prioridad_actual(
+    mediciones: pd.DataFrame,
+    dias_vigencia: int = 30,
+    tendencias: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """
     Priorización interna y transparente.
     P1: Peligro/Crítico actual.
@@ -504,7 +508,8 @@ def prioridad_actual(mediciones: pd.DataFrame, dias_vigencia: int = 30) -> pd.Da
     El RPN se usa únicamente para desempatar el orden, no para cambiar el estado.
     """
     actuales = estado_actual_por_punto(mediciones).copy()
-    tendencias = tendencia_ultimas_6_velocidad(mediciones)
+    if tendencias is None:
+        tendencias = tendencia_ultimas_6_velocidad(mediciones)
 
     if actuales.empty:
         return pd.DataFrame()
@@ -589,7 +594,10 @@ def prioridad_actual(mediciones: pd.DataFrame, dias_vigencia: int = 30) -> pd.Da
     ).reset_index(drop=True)
 
 
-def jackknife_velocidad(mediciones: pd.DataFrame) -> pd.DataFrame:
+def jackknife_velocidad(
+    mediciones: pd.DataFrame,
+    tendencias: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """
     Base Jack-knife: valor actual de velocidad vs pendiente reciente.
     Solo calcula pendiente cuando hay al menos 4 mediciones; el R² permite
@@ -600,7 +608,8 @@ def jackknife_velocidad(mediciones: pd.DataFrame) -> pd.DataFrame:
         actuales["TipoVariable"].eq("Vibracion-Velocidad")
     ].copy()
 
-    tendencias = tendencia_ultimas_6_velocidad(mediciones)
+    if tendencias is None:
+        tendencias = tendencia_ultimas_6_velocidad(mediciones)
     if actuales.empty:
         return pd.DataFrame()
 
