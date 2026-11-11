@@ -1,0 +1,27 @@
+RELEASE VALIDADO - MONITOREO DE CONDICIÓN MOLINOS
+Fecha de datos máxima: 06/11/2026
+Registros cargados por calculos.py: 12,025
+Fecha mínima: 10/01/2023
+Fecha máxima: 06/11/2026
+
+Molino 1A - última ronda:
+4H = 5.30 mm/s
+4V = 3.90 mm/s
+4A = 4.20 mm/s
+4g = 0.64 g
+4gE = 1.15 gE
+5A = TRUNNION CARGA = 4.20 mm/s
+6A = TRUNNION DESCARGA = 2.90 mm/s
+
+Máximo actual por equipo según última lectura válida por punto:
+Molino 1A = 5.30 mm/s
+Molino 1  = 2.60 mm/s
+Molino 2  = 1.60 mm/s
+Molino 3  = 3.70 mm/s
+Molino 4  = 16.60 mm/s
+
+Espectros cargables:
+54 CSV = 18 Velocidad + 18 Aceleración + 18 Envolvente.
+
+La aplicación conserva app.py, calculos.py, config.py y espectros.py.
+No se han escrito valores manualmente dentro del dashboard.

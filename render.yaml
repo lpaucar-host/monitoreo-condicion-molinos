@@ -3,9 +3,5 @@ services:
     name: monitoreo-condicion-molinos
     runtime: python
     plan: free
-    buildCommand: |
-      rm -rf app
-      mkdir app
-      unzip -o MONITOREO_CONDICION_MOLINOS_RELEASE_VALIDADO.zip -d app
-      pip install -r app/requirements.txt
-    startCommand: streamlit run app/app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
