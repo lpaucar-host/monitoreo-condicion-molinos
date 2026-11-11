@@ -492,6 +492,12 @@ def load_ciclos(_mtime: float, equipo: str, cod_punto: str):
 
 
 
+def _cambiar_pagina_dashboard():
+    nuevo = st.session_state.get("_dashboard_nav")
+    if nuevo:
+        st.query_params["pagina"] = nuevo
+
+
 def cabecera_dashboard(titulo, subtitulo, activa):
     items = [
         ("resumen", "Resumen"),
@@ -502,13 +508,8 @@ def cabecera_dashboard(titulo, subtitulo, activa):
         ("cobertura", "Cobertura"),
         ("espectral", "Espectral"),
     ]
-
-    enlaces = []
-    for slug, texto in items:
-        clase = "top-nav active" if slug == activa else "top-nav"
-        enlaces.append(
-            f"<a class='{clase}' href='?pagina={slug}' target='_self'>{html.escape(texto)}</a>"
-        )
+    etiquetas = dict(items)
+    slugs = [slug for slug, _ in items]
 
     recarga = (
         f"<a class='refresh-btn' href='?pagina={activa}&actualizar=1' "
@@ -523,12 +524,29 @@ def cabecera_dashboard(titulo, subtitulo, activa):
             <div class="exec-subtitle">{html.escape(subtitulo)}</div>
           </div>
           <div class="header-actions">
-            <div class="top-nav-wrap">{''.join(enlaces)}</div>
             {recarga}
           </div>
         </div>
         """,
         unsafe_allow_html=True,
+    )
+
+    # Navegación interna: mantiene la misma sesión Streamlit y evita
+    # una recarga completa del navegador al cambiar de sección.
+    if st.session_state.get("_dashboard_nav") != activa:
+        st.session_state["_dashboard_nav"] = activa
+
+    st.pills(
+        "Sección",
+        slugs,
+        format_func=lambda slug: etiquetas.get(slug, slug),
+        selection_mode="single",
+        required=True,
+        key="_dashboard_nav",
+        on_change=_cambiar_pagina_dashboard,
+        label_visibility="collapsed",
+        width="stretch",
+        wrap=False,
     )
 
 
