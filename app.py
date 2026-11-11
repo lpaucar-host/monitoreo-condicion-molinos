@@ -455,6 +455,42 @@ header[data-testid="stHeader"] {
 def load_data(_mtime: float):
     return cargar_mediciones()
 
+@st.cache_data(show_spinner=False)
+def load_tendencias(_mtime: float):
+    return tendencia_ultimas_6_velocidad(load_data(_mtime))
+
+
+@st.cache_data(show_spinner=False)
+def load_prioridad(_mtime: float, dias_vigencia: int = 30):
+    datos = load_data(_mtime)
+    return prioridad_actual(
+        datos,
+        dias_vigencia=dias_vigencia,
+        tendencias=load_tendencias(_mtime),
+    )
+
+
+@st.cache_data(show_spinner=False)
+def load_jackknife(_mtime: float):
+    datos = load_data(_mtime)
+    return jackknife_velocidad(datos, tendencias=load_tendencias(_mtime))
+
+
+@st.cache_data(show_spinner=False)
+def load_cobertura_global(_mtime: float, ventana: int):
+    return cobertura_global(load_data(_mtime), int(ventana))
+
+
+@st.cache_data(show_spinner=False)
+def load_proyeccion(_mtime: float, equipo: str, cod_punto: str):
+    return proyeccion_lineal_punto(load_data(_mtime), equipo, cod_punto)
+
+
+@st.cache_data(show_spinner=False)
+def load_ciclos(_mtime: float, equipo: str, cod_punto: str):
+    return ciclos_mantenimiento(load_data(_mtime), equipo, cod_punto)
+
+
 
 def cabecera_dashboard(titulo, subtitulo, activa):
     items = [
@@ -777,7 +813,7 @@ if pagina == "Resumen Ejecutivo":
     info = resumen_fuente(mediciones)
     actuales_punto = estado_actual_por_punto(mediciones)
     actuales_equipo = estado_actual_por_equipo(mediciones).copy()
-    tendencias = tendencia_ultimas_6_velocidad(mediciones)
+    tendencias = load_tendencias(mtime)
     actuales_equipo["EstadoEjecutivo"] = actuales_equipo["Severidad"].map(estado_general)
 
     fecha_global = pd.to_datetime(mediciones["Fecha"].max())
@@ -1118,7 +1154,7 @@ if pagina == "Resumen Ejecutivo":
 elif pagina == "Análisis por Equipo":
     actuales_punto = estado_actual_por_punto(mediciones)
     actuales_equipo = estado_actual_por_equipo(mediciones).copy()
-    tendencias = tendencia_ultimas_6_velocidad(mediciones)
+    tendencias = load_tendencias(mtime)
 
     equipos_ordenados = (
         actuales_equipo.sort_values("OrdenEquipo")["EquipoCorto"].tolist()
@@ -1609,7 +1645,7 @@ elif pagina == "Prioridad de Intervención":
             unsafe_allow_html=True,
         )
 
-    pri = prioridad_actual(mediciones, dias_vigencia=30)
+    pri = load_prioridad(mtime, dias_vigencia=30)
     peq = pri[pri["EquipoCorto"].eq(equipo_sel)].copy()
     counts = peq["Prioridad"].value_counts().reindex(["P1","P2","P3","P4"], fill_value=0)
 
@@ -1740,7 +1776,7 @@ elif pagina == "Jack-knife":
         "jackknife",
     )
 
-    jk = jackknife_velocidad(mediciones)
+    jk = load_jackknife(mtime)
     jeq_all_pre = jk.copy()
 
     c1,c2,c3 = st.columns([1.0,1.35,2.1])
@@ -1778,7 +1814,7 @@ elif pagina == "Jack-knife":
             unsafe_allow_html=True,
         )
 
-    modelo = proyeccion_lineal_punto(mediciones,equipo_sel,cod_sel)
+    modelo = load_proyeccion(mtime,equipo_sel,cod_sel)
     current_row = jeq_all[jeq_all["CodPunto"].eq(cod_sel)]
     current_value = float(current_row.iloc[0]["Valor"]) if not current_row.empty else np.nan
     current_state = str(current_row.iloc[0]["Estado"]) if not current_row.empty else "SIN DATO"
@@ -1967,7 +2003,7 @@ elif pagina == "Histórico y Confiabilidad":
         )
 
     ciclo = confiabilidad_ciclo_actual(mediciones,equipo_sel,cod_sel)
-    ciclos = ciclos_mantenimiento(mediciones,equipo_sel,cod_sel)
+    ciclos = load_ciclos(mtime,equipo_sel,cod_sel)
     evento = ciclo.get("evento")
     fecha_evento = pd.to_datetime(evento["fecha"]) if evento else None
 
@@ -2142,7 +2178,7 @@ elif pagina == "Cobertura de Monitoreo":
             "</div>",unsafe_allow_html=True
         )
 
-    glob = cobertura_global(mediciones,ventana)
+    glob = load_cobertura_global(mtime,ventana)
     cobertura = glob["cobertura"]
     detalle = glob["detalle"]
     crow = cobertura[cobertura["EquipoCorto"].eq(equipo_sel)].iloc[0]
