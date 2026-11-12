@@ -322,15 +322,23 @@ def _indice_condicion(tipo_variable: str, valor) -> float:
 
 def estado_actual_por_equipo(mediciones: pd.DataFrame) -> pd.DataFrame:
     """
-    Resume cada molino por su peor punto actual.
-    Primero manda la severidad; si varios puntos comparten severidad,
-    se elige el más comprometido respecto de los límites de SU variable.
+    Resume cada molino exclusivamente por su condición actual de velocidad RMS.
+
+    La envolvente gE, la aceleración RMS y la temperatura permanecen disponibles
+    como indicadores técnicos, pero no gobiernan el estado ejecutivo del molino.
+    Entre los puntos de velocidad manda la severidad; si varios comparten estado,
+    se elige el de mayor compromiso respecto de los límites de velocidad.
     """
     ult = estado_actual_por_punto(mediciones)
     if ult.empty:
         return pd.DataFrame()
 
-    ult = ult.copy()
+    # Regla ejecutiva vigente: el estado general del molino se respalda solo
+    # con las lecturas de velocidad RMS disponibles en el Excel.
+    ult = ult[ult["TipoVariable"].eq("Vibracion-Velocidad")].copy()
+    if ult.empty:
+        return pd.DataFrame()
+
     ult["IndiceCondicion"] = [
         _indice_condicion(t, v) for t, v in zip(ult["TipoVariable"], ult["Valor"])
     ]
@@ -359,7 +367,6 @@ def estado_actual_por_equipo(mediciones: pd.DataFrame) -> pd.DataFrame:
             "PuntosAtencion": puntos_atencion,
         })
     return pd.DataFrame(filas).sort_values("OrdenEquipo").reset_index(drop=True)
-
 
 def tendencia_ultimas_6_velocidad(mediciones: pd.DataFrame) -> pd.DataFrame:
     """
