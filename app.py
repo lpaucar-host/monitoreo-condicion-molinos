@@ -876,9 +876,13 @@ if pagina == "Resumen Ejecutivo":
             unsafe_allow_html=True,
         )
 
+    # En Resumen, la condición ejecutiva se respalda exclusivamente con velocidad RMS.
+    actuales_velocidad = actuales_punto[
+        actuales_punto["TipoVariable"].eq("Vibracion-Velocidad")
+    ].copy()
     atencion_equipos = int((actuales_equipo["Severidad"] >= 2).sum())
-    puntos_alerta = int((actuales_punto["Severidad"] == 2).sum())
-    puntos_peligro = int((actuales_punto["Severidad"] >= 3).sum())
+    puntos_alerta = int((actuales_velocidad["Severidad"] == 2).sum())
+    puntos_peligro = int((actuales_velocidad["Severidad"] >= 3).sum())
 
     # Tarjetas KPI con acentos e iconos.
     k1,k2,k3,k4,k5 = st.columns(5)
@@ -1120,7 +1124,7 @@ if pagina == "Resumen Ejecutivo":
     acol, ocol = st.columns([1.62, 1.00], gap="medium")
     with acol:
         st.markdown("<div class='section-title'>Atención requerida ahora</div>", unsafe_allow_html=True)
-        at = actuales_punto[actuales_punto["Severidad"] >= 2].copy()
+        at = actuales_velocidad[actuales_velocidad["Severidad"] >= 2].copy()
         if at.empty:
             st.success("No hay puntos actuales en Alerta, Peligro o Crítico.")
         else:
@@ -1160,7 +1164,8 @@ if pagina == "Resumen Ejecutivo":
     st.markdown(
         "<div class='note' style='margin-top:8px'>"
         "<b>Actualización:</b> el estado de los cinco molinos y la tabla “Atención requerida ahora” "
-        "se recalculan con la última lectura válida de cada punto. Al guardar o reemplazar el Excel, "
+        "se calculan únicamente con la última lectura válida de velocidad RMS de cada punto. "
+        "gE y temperatura quedan como indicadores técnicos de análisis. Al guardar o reemplazar el Excel, "
         "el dashboard detecta el cambio automáticamente (máximo 60 s) o de inmediato con “Actualizar datos”."
         "</div>",
         unsafe_allow_html=True,
@@ -1222,19 +1227,54 @@ elif pagina == "Análisis por Equipo":
         puntos_fisicos = ["—"]
         puntos_labels = {"—":"Sin puntos de velocidad"}
 
-    # Por defecto, el punto físico del punto dominante.
-    pdom = str(
-        act_eq_points.loc[
-            act_eq_points["CodPunto"] == row_eq["CodPuntoDominante"], "Punto"
-        ].iloc[0]
-    ).replace(".0","") if any(act_eq_points["CodPunto"] == row_eq["CodPuntoDominante"]) else puntos_fisicos[0]
+    # Punto físico por defecto:
+    # 1) CONTRAEJE con mayor velocidad RMS actual;
+    # 2) si no existe, punto de velocidad dominante del equipo;
+    # 3) si tampoco existe, primer punto disponible.
+    vel_actual_eq = act_eq_points[
+        act_eq_points["TipoVariable"].eq("Vibracion-Velocidad")
+    ].copy()
+    contra_actual = vel_actual_eq[
+        vel_actual_eq["Componente"].astype(str).str.upper().str.contains("CONTRAEJE", na=False)
+    ].copy()
+
+    if not contra_actual.empty:
+        rr_default = contra_actual.sort_values(
+            ["Valor", "Fecha"], ascending=[False, False]
+        ).iloc[0]
+        pdom = str(rr_default["Punto"]).replace(".0", "")
+    else:
+        dom_match = vel_actual_eq[
+            vel_actual_eq["CodPunto"].eq(row_eq["CodPuntoDominante"])
+        ]
+        if not dom_match.empty:
+            pdom = str(dom_match.iloc[0]["Punto"]).replace(".0", "")
+        elif not vel_actual_eq.empty:
+            rr_default = vel_actual_eq.sort_values(
+                ["Severidad", "Valor", "Fecha"],
+                ascending=[False, False, False],
+            ).iloc[0]
+            pdom = str(rr_default["Punto"]).replace(".0", "")
+        else:
+            pdom = puntos_fisicos[0]
+
+    if pdom not in puntos_fisicos:
+        pdom = puntos_fisicos[0]
+
+    # Al cambiar de molino se recalcula el punto recomendado. Después, el usuario
+    # puede seleccionar manualmente cualquier otro punto físico.
+    if st.session_state.get("_equipo_default_punto_analisis") != equipo_sel:
+        st.session_state["_equipo_default_punto_analisis"] = equipo_sel
+        st.session_state["punto_fisico_analisis"] = pdom
+    elif st.session_state.get("punto_fisico_analisis") not in puntos_fisicos:
+        st.session_state["punto_fisico_analisis"] = pdom
 
     with f2:
         punto_sel = st.selectbox(
             "Punto físico",
             puntos_fisicos,
-            index=puntos_fisicos.index(pdom) if pdom in puntos_fisicos else 0,
             format_func=lambda p: puntos_labels.get(p,p),
+            key="punto_fisico_analisis",
         )
 
     fechas_eq = sorted(pd.to_datetime(med_eq["Fecha"]).dt.date.unique().tolist())
@@ -1282,8 +1322,8 @@ elif pagina == "Análisis por Equipo":
          f"{max_temp['Valor']:.1f} °C" if max_temp is not None else "Sin dato",
          f"{max_temp['CodPunto']} · {max_temp['Estado']}" if max_temp is not None else ""),
         (k6,"!","#C62828","Puntos con atención",
-         str(int((act_eq_points["Severidad"] >= 2).sum())),
-         "Alerta / Peligro / Crítico"),
+         str(int(((act_eq_points["TipoVariable"] == "Vibracion-Velocidad") & (act_eq_points["Severidad"] >= 2)).sum())),
+         "Velocidad: Alerta / Peligro"),
     ]
     for col,icono,accent,label,value,note in kpis_eq:
         col.markdown(
